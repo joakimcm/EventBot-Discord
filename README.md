@@ -36,11 +36,14 @@ DISCORD_TOKEN=
 
 # Høyreklikk kanalen -> Copy Channel ID
 # (krever Developer Mode: Innstillinger -> Advanced -> Developer Mode)
-DISCORD_CHANNEL_ID=
+# Kommaseparert hvis du vil poste i flere: 123,456
+DISCORD_CHANNEL_IDS=
 
-# Valgfritt. Standard: mandag 09:00, norsk tid.
-POST_DAY=MONDAY
-POST_TIME=09:00
+# Valgfritt, og bare i bruk hvis du kjører boten som en kontinuerlig prosess.
+# På GitHub Actions styres tidspunktet av cron i workflowen.
+# Standard: mandag og torsdag 12:00, norsk tid.
+POST_DAYS=MONDAY,THURSDAY
+POST_TIME=12:00
 ```
 
 ```bash
@@ -57,7 +60,7 @@ Boten kjører på GitHub Actions, mandag og torsdag kl. 12:00 norsk tid
 | Secret | Verdi |
 |---|---|
 | `DISCORD_TOKEN` | bot-token fra Developer Portal |
-| `DISCORD_CHANNEL_ID` | kanalen det skal postes i |
+| `DISCORD_CHANNEL_IDS` | kanal-ID-er, kommaseparert: `123,456` |
 
 Du kan kjøre den manuelt når som helst fra **Actions**-fanen → *Ukentlig
 oppsummering* → **Run workflow**. Manuelle kjøringer hopper over klokkesjekken.

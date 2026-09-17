@@ -52,5 +52,8 @@ jobs:
         if: steps.vakt.outputs.kjor == 'true'
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          # Flere kanaler: kommaseparert liste i DISCORD_CHANNEL_IDS.
+          # DISCORD_CHANNEL_ID beholdes som fallback for ett-kanals-oppsett.
+          DISCORD_CHANNEL_IDS: ${{ secrets.DISCORD_CHANNEL_IDS }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
         run: mvn -q -B compile exec:java -Dexec.args="--now"

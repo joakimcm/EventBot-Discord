@@ -38,7 +38,7 @@ fun main(args: Array<String>) {
     }
 
     val config = Config.load()
-    DiscordPublisher(config.discordToken, config.channelId).use { discord ->
+    DiscordPublisher(config.discordToken, config.channelIds).use { discord ->
         if (once) {
             publish(discord)
             return

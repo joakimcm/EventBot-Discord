@@ -10,7 +10,8 @@ import java.time.LocalTime
  */
 data class Config(
     val discordToken: String,
-    val channelId: String,
+    /** Kanalene det postes i, f.eks. `DISCORD_CHANNEL_IDS=123,456`. */
+    val channelIds: List<String>,
     /** Ukedagene det postes på, f.eks. `POST_DAYS=MONDAY,THURSDAY`. */
     val postDays: Set<DayOfWeek>,
     val postTime: LocalTime,
@@ -24,15 +25,24 @@ data class Config(
             fun require(key: String): String = get(key)
                 ?: error("Mangler $key. Sett den i .env eller som miljøvariabel (se README).")
 
-            // POST_DAY beholdes som fallback for eldre oppsett med én dag.
+            // Entallsformene beholdes som fallback for eldre oppsett.
             val days = get("POST_DAYS") ?: get("POST_DAY") ?: "MONDAY,THURSDAY"
+            val channels = get("DISCORD_CHANNEL_IDS")
+                ?: get("DISCORD_CHANNEL_ID")
+                ?: error("Mangler DISCORD_CHANNEL_IDS. Sett den i .env eller som miljøvariabel (se README).")
 
             return Config(
                 discordToken = require("DISCORD_TOKEN"),
-                channelId = require("DISCORD_CHANNEL_ID"),
+                channelIds = parseList(channels),
                 postDays = parseDays(days),
                 postTime = LocalTime.parse(get("POST_TIME") ?: "12:00"),
             )
+        }
+
+        private fun parseList(raw: String): List<String> {
+            val values = raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+            require(values.isNotEmpty()) { "DISCORD_CHANNEL_IDS kan ikke være tom." }
+            return values.distinct()
         }
 
         private fun parseDays(raw: String): Set<DayOfWeek> {

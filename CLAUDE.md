@@ -72,8 +72,15 @@ varsle om kommende uke i stedet for inneværende.
 
 **Konfigurasjon** leses av `Config.load()`: miljøvariabler først, så en lokal
 `.env` (git-ignorert) som fallback, slik at prosjektet kan kjøres rett fra
-IntelliJ. `DISCORD_TOKEN` og `DISCORD_CHANNEL_ID` er påkrevd; `POST_DAYS`
-(kommaseparert) og `POST_TIME` defaulter til mandag og torsdag 12:00.
+IntelliJ. `DISCORD_TOKEN` og `DISCORD_CHANNEL_IDS` er påkrevd; `POST_DAYS` og
+`POST_TIME` defaulter til mandag og torsdag 12:00. `DISCORD_CHANNEL_IDS` og
+`POST_DAYS` er kommaseparerte lister; entallsformene `DISCORD_CHANNEL_ID` og
+`POST_DAY` virker fortsatt som fallback.
+
+**Flere kanaler feiler uavhengig av hverandre.** `DiscordPublisher.post()`
+logger og hopper over en kanal boten ikke når fram til, så de andre får posten
+sin; den kaster bare hvis ingen av kanalene tok imot. Samme prinsipp som for
+kilder i `buildDigest()`.
 
 **Kjøreplanen ligger to steder, og bare den ene er i bruk.** I produksjon
 kjører boten på GitHub Actions med `--now`, og tidspunktet styres av cron i
