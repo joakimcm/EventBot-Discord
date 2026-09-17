@@ -70,8 +70,14 @@ ekte offset og leses som det står. `2026-09-15T21:00:00.000Z` har en dekorativ
 `OsloOmvendtSource` håndterer begge; ikke erstatt den med `Instant.parse`.
 
 Oslo Omvendts data er heller ikke alltid riktig mot arrangøren (Ultimas «Lost
-Signals» står som 21:00 hos dem, 19:00 hos Ultima). Vi speiler guiden deres,
-og det er så nøyaktig vi kan bli uten en egen kilde per arrangør.
+Signals» står som 21:00 hos dem, 19:00 hos Ultima; Annette K & Frantzvaag på Blå
+står som 19:00–23:00, men starter 23:00). Vi speiler guiden deres, og det er så
+nøyaktig vi kan bli uten en egen kilde per arrangør.
+
+**Derfor vises ikke klokkeslett.** `SHOW_TIME` i `Digest.kt` er `false` som
+standard — et tidspunkt som er feil er verre enn ingen. All formatering står
+urørt i `line()`; blir dataene bedre, settes miljøvariabelen `SHOW_TIME=true`
+og ingenting annet trengs. Ikke slett koden.
 
 **Discord tar maks 2000 tegn per melding**, og `digest()` returnerer derfor en
 liste. Oppdelingen er én melding med overskrift pluss én melding per dag — ikke

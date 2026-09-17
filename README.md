@@ -44,6 +44,10 @@ DISCORD_CHANNEL_IDS=
 # Standard: mandag og torsdag 12:00, norsk tid.
 POST_DAYS=MONDAY,THURSDAY
 POST_TIME=12:00
+
+# Klokkeslett per arrangement er av, fordi kilden ikke er palitelig nok.
+# Sett til true for a vise dem igjen.
+SHOW_TIME=false
 ```
 
 ```bash

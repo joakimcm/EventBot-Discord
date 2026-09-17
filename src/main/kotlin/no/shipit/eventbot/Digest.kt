@@ -11,6 +11,16 @@ private val NO = Locale.of("no", "NO")
 private val DAY = DateTimeFormatter.ofPattern("EEEE d. MMMM", NO)
 private val TIME = DateTimeFormatter.ofPattern("HH:mm", NO)
 
+/**
+ * Klokkeslett er skrudd av fordi kilden ikke er til å stole på: Oslo Omvendt
+ * oppgir f.eks. Annette K & Frantzvaag på Blå som 19:00–23:00, mens
+ * arrangementet starter 23:00. Et tidspunkt som er feil er verre enn ingen.
+ *
+ * Skru på igjen med miljøvariabelen `SHOW_TIME=true` — all formatering står
+ * urørt i [line]. Blir dataene bedre, er det bare bryteren som skal flippes.
+ */
+private val SHOW_TIME = System.getenv("SHOW_TIME").toBoolean()
+
 /** Discord: 4096 tegn per embed-beskrivelse, 6000 til sammen per melding. */
 const val EMBED_DESCRIPTION_LIMIT = 4096
 const val EMBED_TOTAL_LIMIT = 6000
@@ -69,9 +79,8 @@ fun digest(week: Week, events: List<Event>): WeeklyDigest {
 }
 
 private fun line(event: Event): String = buildString {
-    val time = event.start.atZone(OSLO).format(TIME)
     append(if (event.highlighted) "✨ " else "• ")
-    append("`$time` ")
+    if (SHOW_TIME) append("`${event.start.atZone(OSLO).format(TIME)}` ")
     append(if (event.url != null) "[${event.title}](${event.url})" else event.title)
     event.venue?.let { append(" @ $it") }
     if (event.lineup.isNotEmpty()) append(" — ${event.lineup.joinToString(", ")}")
