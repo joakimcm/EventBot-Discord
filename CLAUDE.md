@@ -54,10 +54,24 @@ trenge endring. En kilde som kaster blir logget og hoppet over i `buildDigest()`
 
 ## Ting som lett blir feil
 
-**Oslo Omvendt har åpent API — ikke scrape HTML.**
-`GET https://www.osloomvendt.no/api/events?year=<N>&week=<N>`, ingen nøkkel.
-Svaret er `{"events": [...]}`. Feltene `genres`, `description` og `highlight` er
-ofte `null`. De tilbyr også en MCP-server på `/api/mcp`.
+**Bruk MCP-endepunktet, ikke REST-et.** Oslo Omvendt har to åpne endepunkter
+uten nøkkel, og de er uenige om klokkeslett:
+
+- `POST /api/mcp` (`search_events`) — samsvarer med deres egne eventsider. Dette
+  er kilden vi bruker.
+- `GET /api/events?year=&week=` — forskyver events som er lagret med eksplisitt
+  tidssone-offset 2 timer bakover. Verifisert 17.09.2026 mot arrangørenes sider:
+  6 av 27 events i uke 38 var feil. Kalles nå kun for `highlight`-flagget, som
+  MCP-svaret ikke har.
+
+**`startDate` har to formater i samme felt.** `2026-09-18T21:00:00+02:00` er et
+ekte offset og leses som det står. `2026-09-15T21:00:00.000Z` har en dekorativ
+`Z` — tallet er allerede lokal Oslo-tid. `parseTimestamp()` i
+`OsloOmvendtSource` håndterer begge; ikke erstatt den med `Instant.parse`.
+
+Oslo Omvendts data er heller ikke alltid riktig mot arrangøren (Ultimas «Lost
+Signals» står som 21:00 hos dem, 19:00 hos Ultima). Vi speiler guiden deres,
+og det er så nøyaktig vi kan bli uten en egen kilde per arrangør.
 
 **Discord tar maks 2000 tegn per melding**, og `digest()` returnerer derfor en
 liste. Oppdelingen er én melding med overskrift pluss én melding per dag — ikke
