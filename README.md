@@ -1,4 +1,4 @@
-# ship-it — ukentlig event-oppsummering til Discord
+# EventBot — ukentlig event-oppsummering til Discord
 
 Henter events og poster en oppsummering i en Discord-kanal én gang i uka.
 
