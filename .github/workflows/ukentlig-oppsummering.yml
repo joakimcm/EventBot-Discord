@@ -1,0 +1,56 @@
+name: Ukentlig oppsummering
+
+# GitHub cron kjører alltid i UTC og har ingen tidssonestøtte, så 12:00 i Oslo
+# treffer ulikt UTC sommer og vinter:
+#   10:00 UTC = 12:00 CEST (sommertid)
+#   11:00 UTC = 12:00 CET  (vintertid)
+# Begge fyres av, og vakten under slipper gjennom bare den som faktisk er 12:00
+# i Oslo. Nøyaktig én av dem treffer per dag.
+on:
+  schedule:
+    - cron: '0 10,11 * * 1,4'   # mandag og torsdag
+  workflow_dispatch:            # manuell kjøring, hopper over vakten
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ukentlig-oppsummering
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Er klokka 12 i Oslo?
+        id: vakt
+        run: |
+          time=$(TZ=Europe/Oslo date '+%H:%M %Z')
+          hour=$(TZ=Europe/Oslo date '+%H')
+          echo "Oslo-tid nå: $time"
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "Manuell kjøring — kjører uansett."
+            echo "kjor=true" >> "$GITHUB_OUTPUT"
+          elif [ "$hour" = "12" ]; then
+            echo "kjor=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Ikke 12:00 i Oslo — dette er tvillingkjøringen. Hopper over."
+            echo "kjor=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.vakt.outputs.kjor == 'true'
+
+      - uses: actions/setup-java@v4
+        if: steps.vakt.outputs.kjor == 'true'
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Post til Discord
+        if: steps.vakt.outputs.kjor == 'true'
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
+        run: mvn -q -B compile exec:java -Dexec.args="--now"

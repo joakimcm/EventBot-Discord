@@ -48,6 +48,28 @@ mvn -q exec:java -Dexec.args="--now"   # post én gang, nå
 mvn -q exec:java                       # kjør videre, post mandag 09:00
 ```
 
+## Kjøreplan
+
+Boten kjører på GitHub Actions, mandag og torsdag kl. 12:00 norsk tid
+(`.github/workflows/ukentlig-oppsummering.yml`). Den trenger to secrets under
+**Settings → Secrets and variables → Actions**:
+
+| Secret | Verdi |
+|---|---|
+| `DISCORD_TOKEN` | bot-token fra Developer Portal |
+| `DISCORD_CHANNEL_ID` | kanalen det skal postes i |
+
+Du kan kjøre den manuelt når som helst fra **Actions**-fanen → *Ukentlig
+oppsummering* → **Run workflow**. Manuelle kjøringer hopper over klokkesjekken.
+
+GitHub cron har ingen tidssone og kjører i UTC, så workflowen fyrer av to
+ganger (10:00 og 11:00 UTC) og lar bare den som faktisk er 12:00 i Oslo slippe
+gjennom. Det holder tidspunktet riktig gjennom sommer- og vintertid.
+
+`POST_DAYS` og `POST_TIME` brukes **ikke** av Actions — de gjelder bare hvis du
+kjører boten som en kontinuerlig prosess med `mvn exec:java` uten flagg.
+
+
 ## Datakilder
 
 | Kilde | Endepunkt | Nøkkel |

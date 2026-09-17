@@ -72,5 +72,12 @@ varsle om kommende uke i stedet for inneværende.
 
 **Konfigurasjon** leses av `Config.load()`: miljøvariabler først, så en lokal
 `.env` (git-ignorert) som fallback, slik at prosjektet kan kjøres rett fra
-IntelliJ. `DISCORD_TOKEN` og `DISCORD_CHANNEL_ID` er påkrevd; `POST_DAY` og
-`POST_TIME` defaulter til mandag 09:00.
+IntelliJ. `DISCORD_TOKEN` og `DISCORD_CHANNEL_ID` er påkrevd; `POST_DAYS`
+(kommaseparert) og `POST_TIME` defaulter til mandag og torsdag 12:00.
+
+**Kjøreplanen ligger to steder, og bare den ene er i bruk.** I produksjon
+kjører boten på GitHub Actions med `--now`, og tidspunktet styres av cron i
+`.github/workflows/ukentlig-oppsummering.yml`. `POST_DAYS`/`POST_TIME` gjelder
+kun den kontinuerlige modusen (`mvn exec:java` uten flagg). Endrer du
+kjøretidspunktet, er det cron-uttrykket som teller — og det er i UTC, med en
+klokkevakt i workflowen som holder 12:00 Oslo riktig over sommertid.

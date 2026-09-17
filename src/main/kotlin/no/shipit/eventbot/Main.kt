@@ -47,15 +47,30 @@ fun main(args: Array<String>) {
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         Runtime.getRuntime().addShutdownHook(Thread { scheduler.shutdown() })
 
-        val delay = untilNextRun(config)
-        log.info("Neste utsending om {} (kl. {} hver {})", human(delay), config.postTime, config.postDay)
-
-        scheduler.scheduleAtFixedRate(
-            { runCatching { publish(discord) }.onFailure { log.error("Utsending feilet", it) } },
-            delay.toMinutes(),
-            Duration.ofDays(7).toMinutes(),
-            TimeUnit.MINUTES,
+        log.info(
+            "Poster kl. {} på {}",
+            config.postTime,
+            config.postDays.joinToString(", ") { it.name.lowercase() },
         )
+
+        // Én utsending av gangen, som planlegger neste selv. Et fast intervall
+        // ville drevet av gårde over sommertid og ved avbrudd.
+        fun scheduleNext() {
+            val delay = untilNextRun(config)
+            log.info("Neste utsending om {}", human(delay))
+            scheduler.schedule(
+                {
+                    runCatching { publish(discord) }.onFailure { log.error("Utsending feilet", it) }
+                    scheduleNext()
+                },
+                delay.toSeconds(),
+                TimeUnit.SECONDS,
+            )
+        }
+        scheduleNext()
+
+        // Hold hovedtråden i live; scheduleren er en daemon-fri executor.
+        Thread.currentThread().join()
     }
 }
 
@@ -76,11 +91,15 @@ private fun buildDigest(week: Week = Week.current()): WeeklyDigest {
     return digest(week, events)
 }
 
+/** Nærmeste av de konfigurerte dagene som ligger fram i tid. */
 private fun untilNextRun(config: Config): Duration {
     val now = ZonedDateTime.now(OSLO)
-    var next = now.with(TemporalAdjusters.nextOrSame(config.postDay))
-        .with(config.postTime)
-    if (!next.isAfter(now)) next = next.plusWeeks(1)
+    val next = config.postDays
+        .map { day ->
+            val candidate = now.with(TemporalAdjusters.nextOrSame(day)).with(config.postTime)
+            if (candidate.isAfter(now)) candidate else candidate.plusWeeks(1)
+        }
+        .min()
     return Duration.between(now, next)
 }
 

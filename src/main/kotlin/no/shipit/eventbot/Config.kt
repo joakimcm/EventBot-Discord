@@ -11,7 +11,8 @@ import java.time.LocalTime
 data class Config(
     val discordToken: String,
     val channelId: String,
-    val postDay: DayOfWeek,
+    /** Ukedagene det postes på, f.eks. `POST_DAYS=MONDAY,THURSDAY`. */
+    val postDays: Set<DayOfWeek>,
     val postTime: LocalTime,
 ) {
     companion object {
@@ -21,14 +22,30 @@ data class Config(
                 System.getenv(key)?.takeIf { it.isNotBlank() } ?: dotenv[key]
 
             fun require(key: String): String = get(key)
-                ?: error("Mangler $key. Sett den i .env eller som miljøvariabel (se .env.example).")
+                ?: error("Mangler $key. Sett den i .env eller som miljøvariabel (se README).")
+
+            // POST_DAY beholdes som fallback for eldre oppsett med én dag.
+            val days = get("POST_DAYS") ?: get("POST_DAY") ?: "MONDAY,THURSDAY"
 
             return Config(
                 discordToken = require("DISCORD_TOKEN"),
                 channelId = require("DISCORD_CHANNEL_ID"),
-                postDay = DayOfWeek.valueOf(get("POST_DAY") ?: "MONDAY"),
-                postTime = LocalTime.parse(get("POST_TIME") ?: "09:00"),
+                postDays = parseDays(days),
+                postTime = LocalTime.parse(get("POST_TIME") ?: "12:00"),
             )
+        }
+
+        private fun parseDays(raw: String): Set<DayOfWeek> {
+            val days = raw.split(',')
+                .map { it.trim().uppercase() }
+                .filter { it.isNotEmpty() }
+                .map {
+                    runCatching { DayOfWeek.valueOf(it) }.getOrElse { _ ->
+                        error("Ukjent ukedag '$it' i POST_DAYS. Bruk engelske navn, f.eks. MONDAY,THURSDAY.")
+                    }
+                }
+            require(days.isNotEmpty()) { "POST_DAYS kan ikke være tom." }
+            return days.toSortedSet()
         }
 
         private fun readDotenv(file: File): Map<String, String> {
