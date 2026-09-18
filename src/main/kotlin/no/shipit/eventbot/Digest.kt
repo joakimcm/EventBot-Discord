@@ -16,10 +16,11 @@ private val TIME = DateTimeFormatter.ofPattern("HH:mm", NO)
  * oppgir f.eks. Annette K & Frantzvaag på Blå som 19:00–23:00, mens
  * arrangementet starter 23:00. Et tidspunkt som er feil er verre enn ingen.
  *
- * Skru på igjen med miljøvariabelen `SHOW_TIME=true` — all formatering står
- * urørt i [line]. Blir dataene bedre, er det bare bryteren som skal flippes.
+ * Skru på igjen med `SHOW_TIME=true`, i `.env` eller som miljøvariabel — all
+ * formatering står urørt i [line]. Blir dataene bedre, er det bare bryteren
+ * som skal flippes.
  */
-private val SHOW_TIME = System.getenv("SHOW_TIME").toBoolean()
+private val SHOW_TIME: Boolean get() = Env.flag("SHOW_TIME")
 
 /** Discord: 4096 tegn per embed-beskrivelse, 6000 til sammen per melding. */
 const val EMBED_DESCRIPTION_LIMIT = 4096
