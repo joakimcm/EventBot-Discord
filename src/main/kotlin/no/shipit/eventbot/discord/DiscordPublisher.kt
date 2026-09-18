@@ -25,6 +25,10 @@ class DiscordPublisher(
      * andre kanalene får posten sin. Kaster bare hvis ingen av dem gikk.
      */
     fun post(digest: WeeklyDigest) {
+        // Logges før sending, så en testkjøring kan avbrytes hvis lista er feil.
+        // GitHub maskerer verdien automatisk i Actions-loggen, siden den er en secret.
+        log.info("Poster til {} kanal(er): {}", channelIds.size, channelIds.joinToString(", "))
+
         val embeds = buildEmbeds(digest)
 
         val sent = channelIds.count { id ->
