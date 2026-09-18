@@ -16,4 +16,6 @@ data class Event(
     val highlighted: Boolean = false,
     /** Navnet på kilden, f.eks. "Oslo Omvendt". */
     val source: String,
+    /** Kildens hjemmeside, brukt til krediteringen nederst i meldingen. */
+    val sourceUrl: String? = null,
 )

@@ -40,17 +40,13 @@ class DiscordPublisher(
     }
 
     // Alle embeds på samme melding, så hele uka henger sammen i klienten.
-    // Tittel bare på den første, kreditering bare på den siste.
+    // Tittel bare på den første. Krediteringen ligger i teksten, ikke i en
+    // footer — Discord rendrer ikke markdown-lenker i footere.
     private fun buildEmbeds(digest: WeeklyDigest) = digest.chunks.mapIndexed { index, text ->
         EmbedBuilder()
             .setDescription(text)
             .setColor(ACCENT)
-            .apply {
-                if (index == 0) setTitle(digest.title)
-                if (index == digest.chunks.lastIndex && digest.sources.isNotEmpty()) {
-                    setFooter("Kilde: ${digest.sources.joinToString(", ")}")
-                }
-            }
+            .apply { if (index == 0) setTitle(digest.title) }
             .build()
     }
 

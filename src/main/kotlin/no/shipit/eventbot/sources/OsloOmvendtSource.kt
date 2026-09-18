@@ -57,6 +57,7 @@ class OsloOmvendtSource(
         lineup = node.path("artists").mapNotNull { it.path("name").textValue() },
         url = node.path("urls").firstOrNull()?.path("url")?.textValue(),
         source = name,
+        sourceUrl = BASE,
     )
 
     /**

@@ -43,12 +43,24 @@ private const val TITLE_GAP = "​\n\n"
  * og en travel uke er over 3000. Embeds gir også automatisk bort
  * link-previewene, siden Discord bare lager dem fra URL-er i meldingsteksten.
  */
-data class WeeklyDigest(
-    val title: String,
-    val chunks: List<String>,
-    /** Kildene dataene faktisk kom fra, til krediteringen nederst. */
-    val sources: List<String>,
-)
+data class WeeklyDigest(val title: String, val chunks: List<String>)
+
+/**
+ * Krediteringen står nederst i beskrivelsen, ikke i embed-footeren: Discord
+ * rendrer ikke markdown i footere, så en lenke ville blitt stående som rå
+ * `[tekst](url)`-syntaks.
+ *
+ * Teksten bygges av kildene som faktisk leverte events, så nye kilder dukker
+ * opp av seg selv — og en kilde som feilet blir ikke kreditert.
+ */
+private fun credit(events: List<Event>): String {
+    val names = events
+        .map { it.source to it.sourceUrl }
+        .distinct()
+        .sortedBy { it.first }
+        .map { (name, url) -> if (url != null) "[$name]($url)" else name }
+    return "_Kilde: ${names.joinToString(", ")}_"
+}
 
 fun digest(week: Week, events: List<Event>): WeeklyDigest {
     //   er EM SPACE. Discord slår sammen vanlige mellomrom i titler,
@@ -56,10 +68,8 @@ fun digest(week: Week, events: List<Event>): WeeklyDigest {
     val title = "🗓️ Uke ${week.week} - Hva skjer i Oslo (${events.size} events)"
 
 
-    val sources = events.map { it.source }.distinct().sorted()
-
     if (events.isEmpty()) {
-        return WeeklyDigest(title, listOf("Ingen events funnet denne uka."), sources)
+        return WeeklyDigest(title, listOf("Ingen events funnet denne uka."))
     }
 
     // Dager uten events hoppes over — groupBy gir bare dagene som faktisk har noe.
@@ -75,7 +85,15 @@ fun digest(week: Week, events: List<Event>): WeeklyDigest {
     val chunks = chunk(blocks).toMutableList()
     chunks[0] = TITLE_GAP + chunks[0]
 
-    return WeeklyDigest(title, chunks, sources)
+    // Krediteringen til slutt — på siste embed hvis det er plass, ellers alene.
+    val tail = DAY_GAP + credit(events)
+    if (chunks.last().length + tail.length <= EMBED_DESCRIPTION_LIMIT) {
+        chunks[chunks.lastIndex] = chunks.last() + tail
+    } else {
+        chunks += credit(events)
+    }
+
+    return WeeklyDigest(title, chunks)
 }
 
 private fun line(event: Event): String = buildString {
