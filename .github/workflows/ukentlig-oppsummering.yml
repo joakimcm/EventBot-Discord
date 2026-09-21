@@ -6,13 +6,17 @@ name: Ukentlig oppsummering
 #   11:00 UTC = 12:00 CET  (vintertid)
 # Begge fyres av, og vakten under slipper gjennom bare den som faktisk er 12:00
 # i Oslo. Nøyaktig én av dem treffer per dag.
+#
+# Minuttet er ikke 0 med vilje: planlagte kjøringer står i kø, og køen er lengst
+# på hel time. GitHub sier bare «legg den et annet sted i timen» — minutt 17 er
+# et vanlig valg, ikke noe offisielt anbefalt tall.
 on:
   schedule:
-    - cron: '0 10,11 * * 1,4'   # mandag og torsdag
-  workflow_dispatch:            # manuell kjøring, hopper over vakten
+    - cron: '17 10,11 * * 2,4'   # tirsdag og torsdag
+  workflow_dispatch:             # manuell kjøring, hopper over vakten
 
 permissions:
-  contents: read
+  contents: write   # write kun for keepalive-commiten nederst
 
 concurrency:
   group: ukentlig-oppsummering
@@ -22,19 +26,30 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
-      - name: Er klokka 12 i Oslo?
+      - name: Er dette kjøringen som treffer 12:00 i Oslo?
         id: vakt
+        env:
+          CRON: ${{ github.event.schedule }}
         run: |
-          time=$(TZ=Europe/Oslo date '+%H:%M %Z')
-          hour=$(TZ=Europe/Oslo date '+%H')
-          echo "Oslo-tid nå: $time"
+          naa=$(TZ=Europe/Oslo date '+%H:%M %Z')
           if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "Manuell kjøring — kjører uansett."
+            echo "Manuell kjøring (klokka er $naa i Oslo) — kjører uansett."
             echo "kjor=true" >> "$GITHUB_OUTPUT"
-          elif [ "$hour" = "12" ]; then
+            exit 0
+          fi
+          # Vi sammenligner mot cron-uttrykket som utløste kjøringen, ikke mot
+          # klokka nå. En kjøring som står i kø i halvannen time er fortsatt
+          # dagens post; leste vi veggklokka, ville den blitt forkastet som
+          # «tvilling» og dagen gått tapt.
+          offset=$(TZ=Europe/Oslo date '+%z')          # +0200 sommer, +0100 vinter
+          riktig_time=$(( 12 - 10#${offset:1:2} ))     # 10 om sommeren, 11 om vinteren
+          cron_time=$(echo "$CRON" | awk '{print $2}') # timefeltet i cron-uttrykket
+          echo "Oslo-tid nå: $naa. Utløst av cron '$CRON'."
+          echo "12:00 i Oslo er $riktig_time UTC i dag; denne kjøringen er satt til $cron_time UTC."
+          if [ "$((10#$cron_time))" -eq "$riktig_time" ]; then
             echo "kjor=true" >> "$GITHUB_OUTPUT"
           else
-            echo "Ikke 12:00 i Oslo — dette er tvillingkjøringen. Hopper over."
+            echo "Dette er tvillingkjøringen for den andre årstiden. Hopper over."
             echo "kjor=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -57,3 +72,22 @@ jobs:
           DISCORD_CHANNEL_IDS: ${{ secrets.DISCORD_CHANNEL_IDS }}
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
         run: mvn -q -B compile exec:java -Dexec.args="--now"
+
+      # I et offentlig repo slår GitHub av planlagte workflows når det ikke har
+      # vært aktivitet på 60 dager, og en bot som bare poster til Discord teller
+      # ikke som aktivitet — bare nye commits gjør det. Derfor dytter vi en tom
+      # commit når det nærmer seg. Kjører også om posten over feilet, slik at
+      # klokka ikke løper ut mens noe annet er i stykker.
+      - name: Hold den planlagte kjøringen i live
+        if: always() && steps.vakt.outputs.kjor == 'true'
+        run: |
+          alder=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          echo "Siste commit er $alder dager gammel (grensa er 60)."
+          if [ "$alder" -lt 50 ]; then
+            echo "God margin — gjør ingenting."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit --allow-empty -m 'Hold planlagte kjoringer i live'
+          git push origin "HEAD:${{ github.ref_name }}"

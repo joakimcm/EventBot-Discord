@@ -95,7 +95,7 @@ varsle om kommende uke i stedet for inneværende.
 prosjektet kan kjøres rett fra IntelliJ. Bruker du `System.getenv` direkte,
 virker ikke `.env` — og da stemmer ikke README lenger. `Config.load()` samler
 verdiene boten trenger ved oppstart; `SHOW_TIME` slås opp der den brukes. `DISCORD_TOKEN` og `DISCORD_CHANNEL_IDS` er påkrevd; `POST_DAYS` og
-`POST_TIME` defaulter til mandag og torsdag 12:00. `DISCORD_CHANNEL_IDS` og
+`POST_TIME` defaulter til tirsdag og torsdag 12:00. `DISCORD_CHANNEL_IDS` og
 `POST_DAYS` er kommaseparerte lister; entallsformene `DISCORD_CHANNEL_ID` og
 `POST_DAY` virker fortsatt som fallback.
 
@@ -108,5 +108,15 @@ kilder i `buildDigest()`.
 kjører boten på GitHub Actions med `--now`, og tidspunktet styres av cron i
 `.github/workflows/ukentlig-oppsummering.yml`. `POST_DAYS`/`POST_TIME` gjelder
 kun den kontinuerlige modusen (`mvn exec:java` uten flagg). Endrer du
-kjøretidspunktet, er det cron-uttrykket som teller — og det er i UTC, med en
-klokkevakt i workflowen som holder 12:00 Oslo riktig over sommertid.
+kjøretidspunktet, er det cron-uttrykket som teller — og det er i UTC. To cron
+fyres av hver kjøredag (10:17 og 11:17 UTC), og vakten i workflowen slipper
+gjennom den som er 12:00 i Oslo akkurat nå. Vakten sammenligner mot
+`github.event.schedule`, altså cron-uttrykket som utløste kjøringen, ikke mot
+klokka når jobben starter — planlagte kjøringer står i kø og kan bli en time
+forsinket, og en veggklokkevakt forkaster da dagens post som «tvilling».
+Minuttet er 17 og ikke 0 fordi køen er lengst på hel time.
+
+Siste steg i workflowen dytter en tom commit når siste commit nærmer seg 50
+dager. GitHub slår av planlagte workflows i offentlige repoer etter 60 dager
+uten aktivitet, og bare nye commits teller — en bot som poster til Discord gjør
+ikke det. Derfor står `permissions: contents: write` der.

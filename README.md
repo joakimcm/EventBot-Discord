@@ -41,8 +41,8 @@ DISCORD_CHANNEL_IDS=
 
 # Valgfritt, og bare i bruk hvis du kjører boten som en kontinuerlig prosess.
 # På GitHub Actions styres tidspunktet av cron i workflowen.
-# Standard: mandag og torsdag 12:00, norsk tid.
-POST_DAYS=MONDAY,THURSDAY
+# Standard: tirsdag og torsdag 12:00, norsk tid.
+POST_DAYS=TUESDAY,THURSDAY
 POST_TIME=12:00
 
 # Klokkeslett per arrangement er av, fordi kilden ikke er palitelig nok.
@@ -52,12 +52,12 @@ SHOW_TIME=false
 
 ```bash
 mvn -q exec:java -Dexec.args="--now"   # post én gang, nå
-mvn -q exec:java                       # kjør videre, post mandag 09:00
+mvn -q exec:java                       # kjør videre, post tirsdag og torsdag 12:00
 ```
 
 ## Kjøreplan
 
-Boten kjører på GitHub Actions, mandag og torsdag kl. 12:00 norsk tid
+Boten kjører på GitHub Actions, tirsdag og torsdag kl. 12:00 norsk tid
 (`.github/workflows/ukentlig-oppsummering.yml`). Den trenger to secrets under
 **Settings → Secrets and variables → Actions**:
 
