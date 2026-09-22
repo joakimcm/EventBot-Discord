@@ -7,13 +7,24 @@ name: Ukentlig oppsummering
 # Begge fyres av, og vakten under slipper gjennom bare den som faktisk er 12:00
 # i Oslo. Nøyaktig én av dem treffer per dag.
 #
+# De to står som hver sin cron med vilje. Vakten leser github.event.schedule,
+# som er uttrykket slik det står her. Slo vi dem sammen til '17 10,11 * * 2,4',
+# ville begge kjøringene rapportert nøyaktig samme uttrykk, og vakten hadde
+# ingen måte å se hvilken av dem den snakket med.
+#
 # Minuttet er ikke 0 med vilje: planlagte kjøringer står i kø, og køen er lengst
 # på hel time. GitHub sier bare «legg den et annet sted i timen» — minutt 17 er
 # et vanlig valg, ikke noe offisielt anbefalt tall.
 on:
   schedule:
-    - cron: '17 10,11 * * 2,4'   # tirsdag og torsdag
-  workflow_dispatch:             # manuell kjøring, hopper over vakten
+    - cron: '17 10 * * 2,4'   # 12:00 i Oslo om sommeren
+    - cron: '17 11 * * 2,4'   # 12:00 i Oslo om vinteren
+    # MIDLERTIDIG, fjernes: tester om GitHub i det hele tatt fyrer av planlagte
+    # kjøringer for dette repoet. Timefeltet 13 og 14 treffer aldri 12:00 i
+    # Oslo, så vakten forkaster dem før checkout — ingen bygg, ingen Discord.
+    - cron: '*/10 13 * * *'
+    - cron: '*/10 14 * * *'
+  workflow_dispatch:          # manuell kjøring, hopper over vakten
 
 permissions:
   contents: write   # write kun for keepalive-commiten nederst

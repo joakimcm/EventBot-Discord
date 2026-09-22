@@ -116,6 +116,12 @@ klokka når jobben starter — planlagte kjøringer står i kø og kan bli en ti
 forsinket, og en veggklokkevakt forkaster da dagens post som «tvilling».
 Minuttet er 17 og ikke 0 fordi køen er lengst på hel time.
 
+De to lukene må stå som hver sin `- cron:`-linje. `github.event.schedule`
+gjengir uttrykket slik det står i fila, så en samlet `'17 10,11 * * 2,4'` gir
+begge kjøringene samme uttrykk og gjør vakten blind: timefeltet blir `10,11`,
+som bash-aritmetikken leser som komma-operator og gir 11. Da forkastes begge
+kjøringene om sommeren, og begge slipper gjennom om vinteren.
+
 Siste steg i workflowen dytter en tom commit når siste commit nærmer seg 50
 dager. GitHub slår av planlagte workflows i offentlige repoer etter 60 dager
 uten aktivitet, og bare nye commits teller — en bot som poster til Discord gjør
