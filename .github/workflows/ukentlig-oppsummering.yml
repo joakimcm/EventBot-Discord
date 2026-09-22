@@ -1,37 +1,47 @@
 name: Ukentlig oppsummering
 
+# Posten har to utløsere, og markørfila under sørger for at bare den første som
+# kommer fram i løpet av en dag faktisk poster.
+#
+#  1. En launchd-jobb på utviklingsmaskinen kaller `workflow_dispatch` kl. 12:00
+#     tirsdag og torsdag. Manuelle kjøringer starter innen sekunder, så dette er
+#     den som faktisk treffer klokkeslettet. Se launchd/ i repoet.
+#  2. Cron under, som sikkerhetsnett for dagene maskinen er av.
+#
+# Cron alene holder ikke: målt 22.09.2026 fyrte GitHub av 2 av 12 luker, og de
+# to kom 3–4 timer for sent. Derfor mange luker i stedet for én, og derfor
+# markøren — uten den ville en forsinket kjøring postet oppå launchd-posten.
+#
 # GitHub cron kjører alltid i UTC og har ingen tidssonestøtte, så 12:00 i Oslo
 # treffer ulikt UTC sommer og vinter:
 #   10:00 UTC = 12:00 CEST (sommertid)
 #   11:00 UTC = 12:00 CET  (vintertid)
-# Begge fyres av, og vakten under slipper gjennom bare den som faktisk er 12:00
-# i Oslo. Nøyaktig én av dem treffer per dag.
+# Begge timene fyres av, og vakten slipper gjennom bare den som er 12:00 i Oslo.
 #
 # De to står som hver sin cron med vilje. Vakten leser github.event.schedule,
-# som er uttrykket slik det står her. Slo vi dem sammen til '17 10,11 * * 2,4',
-# ville begge kjøringene rapportert nøyaktig samme uttrykk, og vakten hadde
-# ingen måte å se hvilken av dem den snakket med.
-#
-# Minuttet er ikke 0 med vilje: planlagte kjøringer står i kø, og køen er lengst
-# på hel time. GitHub sier bare «legg den et annet sted i timen» — minutt 17 er
-# et vanlig valg, ikke noe offisielt anbefalt tall.
+# som er uttrykket slik det står her. Slo vi dem sammen til '*/10 10,11 * * 2,4',
+# ville begge timene rapportert nøyaktig samme uttrykk, og vakten hadde ingen
+# måte å se hvilken av dem den snakket med.
 on:
   schedule:
-    - cron: '17 10 * * 2,4'   # 12:00 i Oslo om sommeren
-    - cron: '17 11 * * 2,4'   # 12:00 i Oslo om vinteren
-    # MIDLERTIDIG, fjernes: tester om GitHub i det hele tatt fyrer av planlagte
-    # kjøringer for dette repoet. Timefeltet 13 og 14 treffer aldri 12:00 i
-    # Oslo, så vakten forkaster dem før checkout — ingen bygg, ingen Discord.
-    - cron: '*/10 13 * * *'
-    - cron: '*/10 14 * * *'
-  workflow_dispatch:          # manuell kjøring, hopper over vakten
+    - cron: '*/10 10 * * 2,4'   # 12:00–12:50 i Oslo om sommeren
+    - cron: '*/10 11 * * 2,4'   # 12:00–12:50 i Oslo om vinteren
+  workflow_dispatch:
+    inputs:
+      tving:
+        description: 'Post selv om det allerede er postet i dag'
+        type: boolean
+        default: false
 
 permissions:
-  contents: write   # write kun for keepalive-commiten nederst
+  contents: write   # write kun for markør-commiten nederst
 
 concurrency:
   group: ukentlig-oppsummering
   cancel-in-progress: false
+
+env:
+  MARKOR: .github/sist-postet.txt
 
 jobs:
   post:
@@ -44,14 +54,15 @@ jobs:
         run: |
           naa=$(TZ=Europe/Oslo date '+%H:%M %Z')
           if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "Manuell kjøring (klokka er $naa i Oslo) — kjører uansett."
+            echo "Manuell kjøring (klokka er $naa i Oslo) — vakten gjelder ikke."
             echo "kjor=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Vi sammenligner mot cron-uttrykket som utløste kjøringen, ikke mot
-          # klokka nå. En kjøring som står i kø i halvannen time er fortsatt
+          # klokka nå. En kjøring som har stått fire timer i kø er fortsatt
           # dagens post; leste vi veggklokka, ville den blitt forkastet som
-          # «tvilling» og dagen gått tapt.
+          # «tvilling» og dagen gått tapt. Det er ikke teoretisk — 22.09.2026
+          # kom en 13-luke fram 17:38.
           offset=$(TZ=Europe/Oslo date '+%z')          # +0200 sommer, +0100 vinter
           riktig_time=$(( 12 - 10#${offset:1:2} ))     # 10 om sommeren, 11 om vinteren
           cron_time=$(echo "$CRON" | awk '{print $2}') # timefeltet i cron-uttrykket
@@ -64,18 +75,40 @@ jobs:
             echo "kjor=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # ref: main og ikke github.sha: en kjøring som har ligget i kø ville ellers
+      # sjekket ut treet slik det så ut da den ble utløst, og dermed lest en
+      # markør som er timer gammel.
       - uses: actions/checkout@v4
         if: steps.vakt.outputs.kjor == 'true'
+        with:
+          ref: main
+
+      - name: Er dagen allerede postet?
+        id: markor
+        if: steps.vakt.outputs.kjor == 'true'
+        run: |
+          i_dag=$(TZ=Europe/Oslo date +%F)
+          sist=$(tr -d '[:space:]' < "$MARKOR" 2>/dev/null || true)
+          echo "I dag i Oslo: $i_dag. Markøren sier: ${sist:-tom}."
+          if [ "${{ inputs.tving }}" = "true" ]; then
+            echo "Tvunget kjøring — poster uansett hva markøren sier."
+            echo "kjor=true" >> "$GITHUB_OUTPUT"
+          elif [ "$sist" = "$i_dag" ]; then
+            echo "Allerede postet i dag. Hopper over."
+            echo "kjor=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "kjor=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-java@v4
-        if: steps.vakt.outputs.kjor == 'true'
+        if: steps.markor.outputs.kjor == 'true'
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
       - name: Post til Discord
-        if: steps.vakt.outputs.kjor == 'true'
+        if: steps.markor.outputs.kjor == 'true'
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           # Flere kanaler: kommaseparert liste i DISCORD_CHANNEL_IDS.
@@ -84,21 +117,27 @@ jobs:
           DISCORD_CHANNEL_ID: ${{ secrets.DISCORD_CHANNEL_ID }}
         run: mvn -q -B compile exec:java -Dexec.args="--now"
 
-      # I et offentlig repo slår GitHub av planlagte workflows når det ikke har
-      # vært aktivitet på 60 dager, og en bot som bare poster til Discord teller
-      # ikke som aktivitet — bare nye commits gjør det. Derfor dytter vi en tom
-      # commit når det nærmer seg. Kjører også om posten over feilet, slik at
-      # klokka ikke løper ut mens noe annet er i stykker.
-      - name: Hold den planlagte kjøringen i live
-        if: always() && steps.vakt.outputs.kjor == 'true'
+      # Kjører bevisst ikke med always(): feiler posten, skal markøren stå igjen
+      # urørt så neste luke får prøve på nytt.
+      #
+      # Commiten er samtidig det som holder repoet i live — GitHub slår av
+      # planlagte workflows i offentlige repoer etter 60 dager uten nye commits,
+      # og en bot som bare poster til Discord teller ikke som aktivitet.
+      - name: Merk av at dagen er postet
+        if: steps.markor.outputs.kjor == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          alder=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
-          echo "Siste commit er $alder dager gammel (grensa er 60)."
-          if [ "$alder" -lt 50 ]; then
-            echo "God margin — gjør ingenting."
-            exit 0
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit --allow-empty -m 'Hold planlagte kjoringer i live'
-          git push origin "HEAD:${{ github.ref_name }}"
+          # Skrives gjennom Contents-API-et, ikke med git push. Checkouten er
+          # grunn, og et push derfra kan bli avvist som non-fast-forward hvis
+          # main har flyttet seg mens jobben stod i kø. Da ville posten vært
+          # sendt uten at markøren ble satt, og neste luke samme dag hadde
+          # postet på nytt — akkurat det markøren finnes for å hindre.
+          # API-et skriver alltid mot gjeldende main.
+          i_dag=$(TZ=Europe/Oslo date +%F)
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/$MARKOR?ref=main" --jq .sha 2>/dev/null || true)
+          arg=(-f "message=Postet $i_dag" -f "branch=main")
+          arg+=(-f "content=$(printf '%s\n' "$i_dag" | base64 -w0)")
+          if [ -n "$sha" ]; then arg+=(-f "sha=$sha"); fi
+          ny=$(gh api --method PUT "repos/$GITHUB_REPOSITORY/contents/$MARKOR" "${arg[@]}" --jq '.commit.sha')
+          echo "Markøren satt til $i_dag i commit ${ny:0:7}."

@@ -68,10 +68,24 @@ Boten kjører på GitHub Actions, tirsdag og torsdag kl. 12:00 norsk tid
 
 Du kan kjøre den manuelt når som helst fra **Actions**-fanen → *Ukentlig
 oppsummering* → **Run workflow**. Manuelle kjøringer hopper over klokkesjekken.
+Vil du poste en gang til samme dag, huk av *Post selv om det allerede er postet
+i dag*.
 
-GitHub cron har ingen tidssone og kjører i UTC, så workflowen fyrer av to
-ganger (10:00 og 11:00 UTC) og lar bare den som faktisk er 12:00 i Oslo slippe
-gjennom. Det holder tidspunktet riktig gjennom sommer- og vintertid.
+Posten har to utløsere:
+
+1. **launchd på utviklingsmaskinen** ber GitHub kjøre workflowen kl. 12:00
+   tirsdag og torsdag. Det er denne som treffer klokkeslettet — manuelle
+   kjøringer starter innen sekunder. Se `launchd/` for installasjon.
+2. **Cron i workflowen**, som sikkerhetsnett for dagene maskinen er av.
+
+Cron alene holder ikke: målt 22.09.2026 fyrte GitHub av 2 av 12 planlagte
+luker, og begge kom 3–4 timer for sent. Derfor mange luker i stedet for én.
+GitHub cron har heller ingen tidssone og kjører i UTC, så workflowen fyrer av
+i to timer (10 og 11 UTC) og lar bare den som faktisk er 12:00 i Oslo slippe
+gjennom — det holder tidspunktet riktig gjennom sommer- og vintertid.
+
+Fila `.github/sist-postet.txt` holder datoen for siste post, og hindrer at de
+to utløserne poster hver sin gang samme dag. Boten oppdaterer den selv.
 
 `POST_DAYS` og `POST_TIME` brukes **ikke** av Actions — de gjelder bare hvis du
 kjører boten som en kontinuerlig prosess med `mvn exec:java` uten flagg.

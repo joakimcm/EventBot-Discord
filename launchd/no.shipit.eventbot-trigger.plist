@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Utløser ukesposten kl. 12:00 tirsdag og torsdag ved å be GitHub Actions kjøre
+  workflowen. Grunnen til at dette finnes: GitHubs egen cron er for upålitelig
+  for dette repoet — målt 22.09.2026 kom 2 av 12 planlagte kjøringer, 3–4 timer
+  for sent. En workflow_dispatch starter derimot innen sekunder.
+
+  launchd følger maskinens lokale tid, så Hour 12 er 12:00 norsk tid året rundt,
+  også over sommertidsskiftet. Weekday: 2 = tirsdag, 4 = torsdag.
+
+  Var maskinen av eller i dvale da klokka passerte, kjører launchd jobben så
+  snart maskinen våkner. Posten kommer da sent, men den kommer — og markørfila
+  .github/sist-postet.txt hindrer at den kommer to ganger.
+
+  Installer:
+    cp launchd/no.shipit.eventbot-trigger.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/no.shipit.eventbot-trigger.plist
+
+  Test uten å vente til tirsdag (dette poster på ekte):
+    launchctl kickstart -p gui/$(id -u)/no.shipit.eventbot-trigger
+
+  Avinstaller:
+    launchctl bootout gui/$(id -u)/no.shipit.eventbot-trigger
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>no.shipit.eventbot-trigger</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/gh</string>
+    <string>workflow</string>
+    <string>run</string>
+    <string>ukentlig-oppsummering.yml</string>
+    <string>-R</string>
+    <string>joakimcm/EventBot-Discord</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Weekday</key><integer>2</integer>
+      <key>Hour</key><integer>12</integer>
+      <key>Minute</key><integer>0</integer>
+    </dict>
+    <dict>
+      <key>Weekday</key><integer>4</integer>
+      <key>Hour</key><integer>12</integer>
+      <key>Minute</key><integer>0</integer>
+    </dict>
+  </array>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/joakim.caspar.meen/Library/Logs/eventbot-trigger.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/joakim.caspar.meen/Library/Logs/eventbot-trigger.log</string>
+</dict>
+</plist>

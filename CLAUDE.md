@@ -104,25 +104,46 @@ logger og hopper over en kanal boten ikke når fram til, så de andre får poste
 sin; den kaster bare hvis ingen av kanalene tok imot. Samme prinsipp som for
 kilder i `buildDigest()`.
 
-**Kjøreplanen ligger to steder, og bare den ene er i bruk.** I produksjon
-kjører boten på GitHub Actions med `--now`, og tidspunktet styres av cron i
-`.github/workflows/ukentlig-oppsummering.yml`. `POST_DAYS`/`POST_TIME` gjelder
-kun den kontinuerlige modusen (`mvn exec:java` uten flagg). Endrer du
-kjøretidspunktet, er det cron-uttrykket som teller — og det er i UTC. To cron
-fyres av hver kjøredag (10:17 og 11:17 UTC), og vakten i workflowen slipper
+**Kjøreplanen ligger tre steder, og to av dem er i bruk.** I produksjon kjører
+boten på GitHub Actions med `--now`. `POST_DAYS`/`POST_TIME` gjelder kun den
+kontinuerlige modusen (`mvn exec:java` uten flagg) og rører ikke Actions.
+
+Utløserne er to, og det er med vilje. `launchd/no.shipit.eventbot-trigger.plist`
+på utviklingsmaskinen kaller `workflow_dispatch` kl. 12:00 tirsdag og torsdag —
+det er den som faktisk treffer klokkeslettet. Cron i workflowen er et
+sikkerhetsnett for dagene maskinen er av. Grunnen står i måledata: 22.09.2026
+fyrte GitHub av 2 av 12 planlagte luker, og de to kom 3–4 timer for sent.
+GitHub-cron kan altså ikke levere «kl. 12:00» for dette repoet, uansett hva som
+står i YAML-en. Derfor `*/10` og ikke ett fast minutt — flere sjanser til at én
+kommer fram.
+
+Cron er i UTC. To timer fyres av hver kjøredag (10 og 11), og vakten slipper
 gjennom den som er 12:00 i Oslo akkurat nå. Vakten sammenligner mot
 `github.event.schedule`, altså cron-uttrykket som utløste kjøringen, ikke mot
-klokka når jobben starter — planlagte kjøringer står i kø og kan bli en time
-forsinket, og en veggklokkevakt forkaster da dagens post som «tvilling».
-Minuttet er 17 og ikke 0 fordi køen er lengst på hel time.
+klokka når jobben starter — en kjøring kan ligge timer i kø, og en
+veggklokkevakt ville forkastet den som «tvilling». De to timene må stå som hver
+sin `- cron:`-linje: `github.event.schedule` gjengir uttrykket slik det står i
+fila, så en samlet `'*/10 10,11 * * 2,4'` gir begge timene samme uttrykk og gjør
+vakten blind — timefeltet blir `10,11`, som bash-aritmetikken leser som
+komma-operator og gir 11. Da forkastes alt om sommeren, og alt slipper gjennom
+om vinteren.
 
-De to lukene må stå som hver sin `- cron:`-linje. `github.event.schedule`
-gjengir uttrykket slik det står i fila, så en samlet `'17 10,11 * * 2,4'` gir
-begge kjøringene samme uttrykk og gjør vakten blind: timefeltet blir `10,11`,
-som bash-aritmetikken leser som komma-operator og gir 11. Da forkastes begge
-kjøringene om sommeren, og begge slipper gjennom om vinteren.
+**`.github/sist-postet.txt` er det som gjør to utløsere trygt.** Den holder
+datoen for siste post i Oslo-tid, og kjøringer som ser dagens dato der, hopper
+av før `setup-java`. Uten den ville en forsinket cron-kjøring postet oppå
+launchd-posten. `workflow_dispatch` har en `tving`-input for å overstyre
+markøren når du bevisst vil poste to ganger samme dag. Checkout bruker
+`ref: main` og ikke `github.sha` nettopp her: en kjøring som har ligget i kø
+ville ellers lest en markør som er timer gammel.
 
-Siste steg i workflowen dytter en tom commit når siste commit nærmer seg 50
-dager. GitHub slår av planlagte workflows i offentlige repoer etter 60 dager
-uten aktivitet, og bare nye commits teller — en bot som poster til Discord gjør
-ikke det. Derfor står `permissions: contents: write` der.
+Markøren skrives gjennom Contents-API-et, ikke med `git push`. Checkouten er
+grunn, og et push derfra kan avvises som non-fast-forward hvis `main` har
+flyttet seg mens jobben stod i kø — da ville posten vært sendt uten at markøren
+ble satt, og neste luke samme dag hadde postet på nytt. Steget kjører bevisst
+*ikke* med `always()`: feiler selve posten, skal markøren stå urørt så neste
+luke får prøve.
+
+Den commiten er samtidig det som holder repoet i live. GitHub slår av planlagte
+workflows i offentlige repoer etter 60 dager uten nye commits, og en bot som
+bare poster til Discord teller ikke som aktivitet. Derfor står
+`permissions: contents: write` der.
