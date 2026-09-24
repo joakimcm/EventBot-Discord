@@ -78,7 +78,7 @@ jobs:
       # ref: main og ikke github.sha: en kjøring som har ligget i kø ville ellers
       # sjekket ut treet slik det så ut da den ble utløst, og dermed lest en
       # markør som er timer gammel.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.vakt.outputs.kjor == 'true'
         with:
           ref: main
@@ -100,7 +100,7 @@ jobs:
             echo "kjor=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         if: steps.markor.outputs.kjor == 'true'
         with:
           distribution: temurin
