@@ -95,7 +95,7 @@ varsle om kommende uke i stedet for inneværende.
 prosjektet kan kjøres rett fra IntelliJ. Bruker du `System.getenv` direkte,
 virker ikke `.env` — og da stemmer ikke README lenger. `Config.load()` samler
 verdiene boten trenger ved oppstart; `SHOW_TIME` slås opp der den brukes. `DISCORD_TOKEN` og `DISCORD_CHANNEL_IDS` er påkrevd; `POST_DAYS` og
-`POST_TIME` defaulter til tirsdag og torsdag 12:00. `DISCORD_CHANNEL_IDS` og
+`POST_TIME` defaulter til onsdag 16:00. `DISCORD_CHANNEL_IDS` og
 `POST_DAYS` er kommaseparerte lister; entallsformene `DISCORD_CHANNEL_ID` og
 `POST_DAY` virker fortsatt som fallback.
 
@@ -109,23 +109,23 @@ boten på GitHub Actions med `--now`. `POST_DAYS`/`POST_TIME` gjelder kun den
 kontinuerlige modusen (`mvn exec:java` uten flagg) og rører ikke Actions.
 
 Utløserne er to, og det er med vilje. `launchd/no.shipit.eventbot-trigger.plist`
-på utviklingsmaskinen kaller `workflow_dispatch` kl. 12:00 tirsdag og torsdag —
+på utviklingsmaskinen kaller `workflow_dispatch` kl. 16:00 onsdag —
 det er den som faktisk treffer klokkeslettet. Cron i workflowen er et
 sikkerhetsnett for dagene maskinen er av. Grunnen står i måledata: 22.09.2026
 fyrte GitHub av 2 av 12 planlagte luker, og de to kom 3–4 timer for sent.
-GitHub-cron kan altså ikke levere «kl. 12:00» for dette repoet, uansett hva som
+GitHub-cron kan altså ikke levere «kl. 16:00» for dette repoet, uansett hva som
 står i YAML-en. Derfor `*/10` og ikke ett fast minutt — flere sjanser til at én
 kommer fram.
 
-Cron er i UTC. To timer fyres av hver kjøredag (10 og 11), og vakten slipper
-gjennom den som er 12:00 i Oslo akkurat nå. Vakten sammenligner mot
+Cron er i UTC. To timer fyres av hver kjøredag (14 og 15), og vakten slipper
+gjennom den som er 16:00 i Oslo akkurat nå. Vakten sammenligner mot
 `github.event.schedule`, altså cron-uttrykket som utløste kjøringen, ikke mot
 klokka når jobben starter — en kjøring kan ligge timer i kø, og en
 veggklokkevakt ville forkastet den som «tvilling». De to timene må stå som hver
 sin `- cron:`-linje: `github.event.schedule` gjengir uttrykket slik det står i
-fila, så en samlet `'*/10 10,11 * * 2,4'` gir begge timene samme uttrykk og gjør
-vakten blind — timefeltet blir `10,11`, som bash-aritmetikken leser som
-komma-operator og gir 11. Da forkastes alt om sommeren, og alt slipper gjennom
+fila, så en samlet `'*/10 14,15 * * 3'` gir begge timene samme uttrykk og gjør
+vakten blind — timefeltet blir `14,15`, som bash-aritmetikken leser som
+komma-operator og gir 15. Da forkastes alt om sommeren, og alt slipper gjennom
 om vinteren.
 
 **`.github/sist-postet.txt` er det som gjør to utløsere trygt.** Den holder

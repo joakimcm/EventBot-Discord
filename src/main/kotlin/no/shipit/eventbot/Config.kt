@@ -8,7 +8,7 @@ data class Config(
     val discordToken: String,
     /** Kanalene det postes i, f.eks. `DISCORD_CHANNEL_IDS=123,456`. */
     val channelIds: List<String>,
-    /** Ukedagene det postes på, f.eks. `POST_DAYS=TUESDAY,THURSDAY`. */
+    /** Ukedagene det postes på, f.eks. `POST_DAYS=WEDNESDAY`. */
     val postDays: Set<DayOfWeek>,
     val postTime: LocalTime,
 ) {
@@ -17,7 +17,7 @@ data class Config(
             fun get(key: String) = Env[key]
 
             // Entallsformene beholdes som fallback for eldre oppsett.
-            val days = get("POST_DAYS") ?: get("POST_DAY") ?: "TUESDAY,THURSDAY"
+            val days = get("POST_DAYS") ?: get("POST_DAY") ?: "WEDNESDAY"
             val channels = get("DISCORD_CHANNEL_IDS")
                 ?: get("DISCORD_CHANNEL_ID")
                 ?: error("Mangler DISCORD_CHANNEL_IDS. Sett den i .env eller som miljøvariabel (se README).")
@@ -26,7 +26,7 @@ data class Config(
                 discordToken = Env.require("DISCORD_TOKEN"),
                 channelIds = parseList(channels),
                 postDays = parseDays(days),
-                postTime = LocalTime.parse(get("POST_TIME") ?: "12:00"),
+                postTime = LocalTime.parse(get("POST_TIME") ?: "16:00"),
             )
         }
 
