@@ -3,7 +3,7 @@ name: Ukentlig oppsummering
 # Posten har to utløsere, og markørfila under sørger for at bare den første som
 # kommer fram i løpet av en dag faktisk poster.
 #
-#  1. En launchd-jobb på utviklingsmaskinen kaller `workflow_dispatch` kl. 16:00
+#  1. En launchd-jobb på utviklingsmaskinen kaller `workflow_dispatch` kl. 14:00
 #     onsdag. Manuelle kjøringer starter innen sekunder, så dette er
 #     den som faktisk treffer klokkeslettet. Se launchd/ i repoet.
 #  2. Cron under, som sikkerhetsnett for dagene maskinen er av.
@@ -12,20 +12,20 @@ name: Ukentlig oppsummering
 # to kom 3–4 timer for sent. Derfor mange luker i stedet for én, og derfor
 # markøren — uten den ville en forsinket kjøring postet oppå launchd-posten.
 #
-# GitHub cron kjører alltid i UTC og har ingen tidssonestøtte, så 16:00 i Oslo
+# GitHub cron kjører alltid i UTC og har ingen tidssonestøtte, så 14:00 i Oslo
 # treffer ulikt UTC sommer og vinter:
-#   14:00 UTC = 16:00 CEST (sommertid)
-#   15:00 UTC = 16:00 CET  (vintertid)
-# Begge timene fyres av, og vakten slipper gjennom bare den som er 16:00 i Oslo.
+#   12:00 UTC = 14:00 CEST (sommertid)
+#   13:00 UTC = 14:00 CET  (vintertid)
+# Begge timene fyres av, og vakten slipper gjennom bare den som er 14:00 i Oslo.
 #
 # De to står som hver sin cron med vilje. Vakten leser github.event.schedule,
-# som er uttrykket slik det står her. Slo vi dem sammen til '*/10 14,15 * * 3',
+# som er uttrykket slik det står her. Slo vi dem sammen til '*/10 12,13 * * 3',
 # ville begge timene rapportert nøyaktig samme uttrykk, og vakten hadde ingen
 # måte å se hvilken av dem den snakket med.
 on:
   schedule:
-    - cron: '*/10 14 * * 3'   # 16:00–16:50 i Oslo om sommeren
-    - cron: '*/10 15 * * 3'   # 16:00–16:50 i Oslo om vinteren
+    - cron: '*/10 12 * * 3'   # 14:00–14:50 i Oslo om sommeren
+    - cron: '*/10 13 * * 3'   # 14:00–14:50 i Oslo om vinteren
   workflow_dispatch:
     inputs:
       tving:
@@ -47,7 +47,7 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
-      - name: Er dette kjøringen som treffer 16:00 i Oslo?
+      - name: Er dette kjøringen som treffer 14:00 i Oslo?
         id: vakt
         env:
           CRON: ${{ github.event.schedule }}
@@ -64,10 +64,10 @@ jobs:
           # «tvilling» og dagen gått tapt. Det er ikke teoretisk — 22.09.2026
           # kom en 13-luke fram 17:38.
           offset=$(TZ=Europe/Oslo date '+%z')          # +0200 sommer, +0100 vinter
-          riktig_time=$(( 16 - 10#${offset:1:2} ))     # 14 om sommeren, 15 om vinteren
+          riktig_time=$(( 14 - 10#${offset:1:2} ))     # 12 om sommeren, 13 om vinteren
           cron_time=$(echo "$CRON" | awk '{print $2}') # timefeltet i cron-uttrykket
           echo "Oslo-tid nå: $naa. Utløst av cron '$CRON'."
-          echo "16:00 i Oslo er $riktig_time UTC i dag; denne kjøringen er satt til $cron_time UTC."
+          echo "14:00 i Oslo er $riktig_time UTC i dag; denne kjøringen er satt til $cron_time UTC."
           if [ "$((10#$cron_time))" -eq "$riktig_time" ]; then
             echo "kjor=true" >> "$GITHUB_OUTPUT"
           else

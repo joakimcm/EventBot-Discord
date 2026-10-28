@@ -15,6 +15,9 @@ data class Week(val year: Int, val week: Int) {
 
     val sunday: LocalDate = monday.plusDays(6)
 
+    /** Onsdag–søndag, som er det oppsummeringen dekker. */
+    val digestDays: ClosedRange<LocalDate> = monday.plusDays(2)..sunday
+
     companion object {
         fun of(date: LocalDate): Week =
             Week(date.get(WeekFields.ISO.weekBasedYear()), date.get(WeekFields.ISO.weekOfWeekBasedYear()))

@@ -41,9 +41,9 @@ DISCORD_CHANNEL_IDS=
 
 # Valgfritt, og bare i bruk hvis du kjører boten som en kontinuerlig prosess.
 # På GitHub Actions styres tidspunktet av cron i workflowen.
-# Standard: onsdag 16:00, norsk tid.
+# Standard: onsdag 14:00, norsk tid.
 POST_DAYS=WEDNESDAY
-POST_TIME=16:00
+POST_TIME=14:00
 
 # Klokkeslett per arrangement er av, fordi kilden ikke er palitelig nok.
 # Sett til true for a vise dem igjen.
@@ -52,12 +52,12 @@ SHOW_TIME=false
 
 ```bash
 mvn -q exec:java -Dexec.args="--now"   # post én gang, nå
-mvn -q exec:java                       # kjør videre, post onsdag 16:00
+mvn -q exec:java                       # kjør videre, post onsdag 14:00
 ```
 
 ## Kjøreplan
 
-Boten kjører på GitHub Actions, onsdag kl. 16:00 norsk tid
+Boten kjører på GitHub Actions, onsdag kl. 14:00 norsk tid
 (`.github/workflows/ukentlig-oppsummering.yml`). Den trenger to secrets under
 **Settings → Secrets and variables → Actions**:
 
@@ -73,7 +73,7 @@ i dag*.
 
 Posten har to utløsere:
 
-1. **launchd på utviklingsmaskinen** ber GitHub kjøre workflowen kl. 16:00
+1. **launchd på utviklingsmaskinen** ber GitHub kjøre workflowen kl. 14:00
    onsdag. Det er denne som treffer klokkeslettet — manuelle
    kjøringer starter innen sekunder. Se `launchd/` for installasjon.
 2. **Cron i workflowen**, som sikkerhetsnett for dagene maskinen er av.
@@ -81,7 +81,7 @@ Posten har to utløsere:
 Cron alene holder ikke: målt 22.09.2026 fyrte GitHub av 2 av 12 planlagte
 luker, og begge kom 3–4 timer for sent. Derfor mange luker i stedet for én.
 GitHub cron har heller ingen tidssone og kjører i UTC, så workflowen fyrer av
-i to timer (14 og 15 UTC) og lar bare den som faktisk er 16:00 i Oslo slippe
+i to timer (12 og 13 UTC) og lar bare den som faktisk er 14:00 i Oslo slippe
 gjennom — det holder tidspunktet riktig gjennom sommer- og vintertid.
 
 Fila `.github/sist-postet.txt` holder datoen for siste post, og hindrer at de

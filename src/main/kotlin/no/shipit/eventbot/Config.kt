@@ -26,7 +26,7 @@ data class Config(
                 discordToken = Env.require("DISCORD_TOKEN"),
                 channelIds = parseList(channels),
                 postDays = parseDays(days),
-                postTime = LocalTime.parse(get("POST_TIME") ?: "16:00"),
+                postTime = LocalTime.parse(get("POST_TIME") ?: "14:00"),
             )
         }
 

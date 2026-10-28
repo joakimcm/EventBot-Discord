@@ -64,6 +64,13 @@ uten nøkkel, og de er uenige om klokkeslett:
   6 av 27 events i uke 38 var feil. Kalles nå kun for `highlight`-flagget, som
   MCP-svaret ikke har.
 
+**`highlight` finnes ikke lenger i API-et.** Per 14.10.2026 har `/api/events`
+samme felter som MCP-svaret, uten `highlight`. Flagget finnes fortsatt på
+forsiden deres (Next.js-payload), men ikke i noe API. `highlightedTitles()` får
+derfor tomt sett uten å kaste — `asBoolean(false)` gjør et manglende felt til
+`false` — og ✨ uteblir stille. Koden står urørt i tilfelle feltet kommer
+tilbake.
+
 **`startDate` har to formater i samme felt.** `2026-09-18T21:00:00+02:00` er et
 ekte offset og leses som det står. `2026-09-15T21:00:00.000Z` har en dekorativ
 `Z` — tallet er allerede lokal Oslo-tid. `parseTimestamp()` i
@@ -79,23 +86,42 @@ standard — et tidspunkt som er feil er verre enn ingen. All formatering står
 urørt i `line()`; blir dataene bedre, settes miljøvariabelen `SHOW_TIME=true`
 og ingenting annet trengs. Ikke slett koden.
 
-**Discord tar maks 2000 tegn per melding**, og `digest()` returnerer derfor en
-liste. Oppdelingen er én melding med overskrift pluss én melding per dag — ikke
-for å spare tegn, men fordi avstanden blir jevn: blanke linjer inne i en melding
-gir ujevn luft, og forsvinner helt der meldingene deles. `dayMessages()` deler
-en enkelt dag videre bare hvis den alene sprenger grensen.
+**Uka postes som én melding med embeds, ikke som ren tekst.** En vanlig melding
+tar maks 2000 tegn, og en travel uke er over 4000. Embeds gir 4096 tegn per
+beskrivelse og 6000 til sammen per melding, og Discord lager ikke
+link-previews fra URL-er i embeds. `digest()` returnerer en `WeeklyDigest`
+(tittel + `chunks`), og `DiscordPublisher` gjør hver chunk til én embed på samme
+melding, med tittel bare på den første.
+
+`chunk()` fyller så få embeds som mulig og deler aldri en dag. Sprenger uka 4096
+tegn, starter neste dag i en ny embed — det er forventet, ikke en feil. Uke 42
+var ca. 4150 tegn, og søndag fikk sin egen embed. URL-ene i markdown-lenkene
+teller med selv om de er usynlige (ca. 1750 av tegnene den uka). Går summen
+over 6000, kuttes resten med en henvisning til osloomvendt.no.
+
+Krediteringen står nederst i beskrivelsen og ikke i footeren, fordi Discord ikke
+rendrer markdown i footere. `TITLE_GAP` bruker et zero width space fordi Discord
+trimmer blanke linjer i starten av en beskrivelse. Embed-tekst vises mindre enn
+vanlig meldingstekst; dagsnavn som `###`-overskrifter er måten å få større tekst
+på uten å forlate embeds.
 
 **Tid er ISO-uke i Europe/Oslo.** API-et leverer UTC (`2026-09-23T18:00:00Z` er
 20:00 i Oslo). `model/Week.kt` eier ukeberegningen; `OSLO`-konstanten der er
 eneste sted tidssonen skal defineres. `Week.next()` finnes hvis boten skal
 varsle om kommende uke i stedet for inneværende.
 
+**Oppsummeringen dekker onsdag–søndag, ikke hele uka**, og postes onsdag
+14:00. `buildDigest()` filtrerer på `Week.digestDays` etter dato i Oslo-tid. Filteret må stå der selv om
+kildene blir spurt om én uke: Oslo Omvendts uke 44 (2026) begynte med et event
+søndag 25.10 og hadde ingenting søndag 1.11, så kildens ukegrenser er ikke
+ISO-ukas.
+
 **Alle innstillinger leses gjennom `Env`** (`Env[...]`, `Env.require`,
 `Env.flag`): miljøvariabler først, så en lokal `.env` (git-ignorert), slik at
 prosjektet kan kjøres rett fra IntelliJ. Bruker du `System.getenv` direkte,
 virker ikke `.env` — og da stemmer ikke README lenger. `Config.load()` samler
 verdiene boten trenger ved oppstart; `SHOW_TIME` slås opp der den brukes. `DISCORD_TOKEN` og `DISCORD_CHANNEL_IDS` er påkrevd; `POST_DAYS` og
-`POST_TIME` defaulter til onsdag 16:00. `DISCORD_CHANNEL_IDS` og
+`POST_TIME` defaulter til onsdag 14:00. `DISCORD_CHANNEL_IDS` og
 `POST_DAYS` er kommaseparerte lister; entallsformene `DISCORD_CHANNEL_ID` og
 `POST_DAY` virker fortsatt som fallback.
 
@@ -109,23 +135,23 @@ boten på GitHub Actions med `--now`. `POST_DAYS`/`POST_TIME` gjelder kun den
 kontinuerlige modusen (`mvn exec:java` uten flagg) og rører ikke Actions.
 
 Utløserne er to, og det er med vilje. `launchd/no.shipit.eventbot-trigger.plist`
-på utviklingsmaskinen kaller `workflow_dispatch` kl. 16:00 onsdag —
+på utviklingsmaskinen kaller `workflow_dispatch` kl. 14:00 onsdag —
 det er den som faktisk treffer klokkeslettet. Cron i workflowen er et
 sikkerhetsnett for dagene maskinen er av. Grunnen står i måledata: 22.09.2026
 fyrte GitHub av 2 av 12 planlagte luker, og de to kom 3–4 timer for sent.
-GitHub-cron kan altså ikke levere «kl. 16:00» for dette repoet, uansett hva som
+GitHub-cron kan altså ikke levere «kl. 14:00» for dette repoet, uansett hva som
 står i YAML-en. Derfor `*/10` og ikke ett fast minutt — flere sjanser til at én
 kommer fram.
 
-Cron er i UTC. To timer fyres av hver kjøredag (14 og 15), og vakten slipper
-gjennom den som er 16:00 i Oslo akkurat nå. Vakten sammenligner mot
+Cron er i UTC. To timer fyres av hver kjøredag (12 og 13), og vakten slipper
+gjennom den som er 14:00 i Oslo akkurat nå. Vakten sammenligner mot
 `github.event.schedule`, altså cron-uttrykket som utløste kjøringen, ikke mot
 klokka når jobben starter — en kjøring kan ligge timer i kø, og en
 veggklokkevakt ville forkastet den som «tvilling». De to timene må stå som hver
 sin `- cron:`-linje: `github.event.schedule` gjengir uttrykket slik det står i
-fila, så en samlet `'*/10 14,15 * * 3'` gir begge timene samme uttrykk og gjør
-vakten blind — timefeltet blir `14,15`, som bash-aritmetikken leser som
-komma-operator og gir 15. Da forkastes alt om sommeren, og alt slipper gjennom
+fila, så en samlet `'*/10 12,13 * * 3'` gir begge timene samme uttrykk og gjør
+vakten blind — timefeltet blir `12,13`, som bash-aritmetikken leser som
+komma-operator og gir 13. Da forkastes alt om sommeren, og alt slipper gjennom
 om vinteren.
 
 **`.github/sist-postet.txt` er det som gjør to utløsere trygt.** Den holder

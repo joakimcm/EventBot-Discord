@@ -80,15 +80,25 @@ private fun publish(discord: DiscordPublisher) {
     log.info("Postet uke {} som {} embed(s)", Week.current().week, digest.chunks.size)
 }
 
-/** Henter fra alle kilder; en kilde som feiler stopper ikke resten. */
+/**
+ * Henter fra alle kilder; en kilde som feiler stopper ikke resten.
+ *
+ * Bare onsdag–søndag tas med, filtrert på dato i Oslo-tid. Kildene har sine
+ * egne ukegrenser — Oslo Omvendts uke 44 begynte på søndagen før — så
+ * filteret er det som faktisk bestemmer hvilke dager som vises.
+ */
 private fun buildDigest(week: Week = Week.current()): WeeklyDigest {
     val events: List<Event> = sources.flatMap { source ->
         runCatching { source.fetch(week) }
             .onFailure { log.warn("Kilde '{}' feilet, hopper over", source.name, it) }
             .getOrDefault(emptyList())
     }
-    log.info("Hentet {} events for uke {} fra {} kilde(r)", events.size, week.week, sources.size)
-    return digest(week, events)
+    val shown = events.filter { it.start.atZone(OSLO).toLocalDate() in week.digestDays }
+    log.info(
+        "Hentet {} events for uke {} fra {} kilde(r), {} av dem onsdag–søndag",
+        events.size, week.week, sources.size, shown.size,
+    )
+    return digest(week, shown)
 }
 
 /** Nærmeste av de konfigurerte dagene som ligger fram i tid. */
